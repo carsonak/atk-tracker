@@ -2,37 +2,20 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
-	"path/filepath"
 
-	"github.com/carsonak/atk-tracker/internal/utils"
+	"github.com/carsonak/atk-tracker/internal/HIDevent"
 )
 
 func main() {
-	files, err := filepath.Glob("/dev/input/event*")
-	if err != nil {
-		panic(err)
-	}
-
-	var validDevices []string
-
-	for _, filename := range files {
-		file, err := os.Open(filename)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
+	validDevices, errs := HIDevent.GetHIDHandlers()
+	if len(errs) > 0 {
+		for _, e := range errs {
+			log.Println(e)
 		}
 
-		res, err := utils.IsActivityDevice(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-
-		file.Close()
-		if res {
-			validDevices = append(validDevices, filename)
-		}
+		os.Exit(1)
 	}
 
 	for _, dev := range validDevices {
