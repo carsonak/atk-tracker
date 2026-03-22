@@ -1,0 +1,48 @@
+# AppArmor profile for ATK Tracker client daemon.
+# Install: sudo cp usr.local.bin.atk-client /etc/apparmor.d/
+#          sudo apparmor_parser -r /etc/apparmor.d/usr.local.bin.atk-client
+
+#include <tunables/global>
+
+profile atk-client /usr/local/bin/atk-client {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  # Binary itself
+  /usr/local/bin/atk-client mr,
+
+  # Read HID input devices
+  /dev/input/event* r,
+
+  # SQLite offline buffer – read/write + journal/wal files
+  /var/lib/atk-tracker/          r,
+  /var/lib/atk-tracker/**        rwk,
+
+  # Outgoing network access (HTTP to server)
+  network inet  stream,
+  network inet6 stream,
+
+  # DNS resolution
+  /etc/resolv.conf       r,
+  /etc/nsswitch.conf     r,
+  /etc/hosts             r,
+  /run/systemd/resolve/** r,
+
+  # D-Bus access for logind session monitoring
+  #include <abstractions/dbus-strict>
+  dbus send    bus=system path=/org/freedesktop/login1**,
+  dbus receive bus=system path=/org/freedesktop/login1**,
+
+  # Shared libraries
+  /lib/**                r,
+  /usr/lib/**            r,
+
+  # /proc and /sys for Go runtime
+  /proc/sys/net/**       r,
+  @{PROC}/@{pid}/**      r,
+
+  # Deny everything else
+  deny /home/**          rwx,
+  deny /root/**          rwx,
+  deny /tmp/**           rwx,
+}
