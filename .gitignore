@@ -1,0 +1,20 @@
+# Go
+bin/
+*.test
+*.out
+
+# Local DBs
+*.db
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
