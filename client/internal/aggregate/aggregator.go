@@ -29,15 +29,11 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 	go func() {
 		defer close(out)
 		secTicker := time.NewTicker(1 * time.Second)
-
 		defer secTicker.Stop()
-
-		windowTicker := time.NewTicker(time.Duration(a.windowSeconds) * time.Second)
-
-		defer windowTicker.Stop()
 
 		activeThisSecond := false
 		activeSeconds := 0
+		ticks := 0
 
 		for {
 			select {
@@ -45,15 +41,17 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 				return
 			case <-events:
 				activeThisSecond = true
-			case <-secTicker.C:
+			case t := <-secTicker.C:
 				if activeThisSecond {
 					activeSeconds++
 				}
-
+				ticks++
 				activeThisSecond = false
-			case t := <-windowTicker.C:
-				out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}
-				activeSeconds = 0
+				if ticks >= a.windowSeconds {
+					out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}
+					activeSeconds = 0
+					ticks = 0
+				}
 			}
 		}
 	}()
