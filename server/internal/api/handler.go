@@ -12,6 +12,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const liveHeartbeatRecencyWindow = 5 * time.Minute
+
 type Handler struct {
 	store *db.Store
 	live  *live.Tracker
@@ -110,7 +112,10 @@ func (h *Handler) createHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.live.Touch(apprenticeID, machineID, time.Now().UTC())
+	now := time.Now().UTC()
+	if now.Sub(hb.Timestamp.UTC()) <= liveHeartbeatRecencyWindow {
+		h.live.Touch(apprenticeID, machineID, now)
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 
