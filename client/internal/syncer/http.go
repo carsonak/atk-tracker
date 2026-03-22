@@ -96,5 +96,6 @@ func (h *HTTPClient) sendJSON(ctx context.Context, method, url string, body inte
 	if h.apiKey != "" {
 		req.Header.Set("X-API-Key", h.apiKey)
 	}
+
 	return h.client.Do(req)
 }

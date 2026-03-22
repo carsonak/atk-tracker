@@ -38,9 +38,11 @@ type Handler struct {
 
 func NewHandler(store DataStore, live *live.Tracker) *Handler {
 	key := os.Getenv("ATK_API_KEY")
+
 	if key == "" {
 		log.Println("WARNING: ATK_API_KEY is not set; write endpoints are unprotected")
 	}
+
 	return &Handler{store: store, live: live, apiKey: key}
 }
 
@@ -58,6 +60,7 @@ func (h *Handler) requireAPIKey(next http.Handler) http.Handler {
 		}
 
 		token := r.Header.Get("X-API-Key")
+
 		if token == "" {
 			if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 				token = strings.TrimPrefix(auth, "Bearer ")
@@ -104,6 +107,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to check sessions", http.StatusInternalServerError)
 		return
 	}
+
 	if count >= 2 {
 		http.Error(w, "concurrent session limit reached (max 2)", http.StatusConflict)
 		return
@@ -182,9 +186,11 @@ func (h *Handler) createHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
+
 	if now.Sub(hb.Timestamp.UTC()) <= liveHeartbeatRecencyWindow {
 		h.live.Touch(apprenticeID, machineID, now)
 	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 

@@ -53,6 +53,7 @@ func (s *Store) CountActiveSessions(ctx context.Context, apprenticeID string) (i
 		SELECT COUNT(*) FROM sessions
 		WHERE apprentice_id = $1 AND logout_time IS NULL
 	`, apprenticeID).Scan(&count)
+
 	return count, err
 }
 
@@ -73,6 +74,7 @@ func (s *Store) CloseStaleSessions(ctx context.Context, staleThreshold time.Dura
 	if err != nil {
 		return 0, err
 	}
+
 	return cmd.RowsAffected(), nil
 }
 
@@ -193,6 +195,7 @@ func (s *Store) RollupPreviousDay(ctx context.Context, day time.Time, loc *time.
 	startOfDay := time.Date(localDay.Year(), localDay.Month(), localDay.Day(), 0, 0, 0, 0, loc).UTC()
 	endOfDay := startOfDay.Add(24 * time.Hour)
 	_, err := s.pool.Exec(ctx, rollupSQL, startOfDay, endOfDay)
+
 	return err
 }
 

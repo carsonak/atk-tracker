@@ -30,42 +30,55 @@ func (m *mockStore) CreateSession(ctx context.Context, aid, mid string) (string,
 	if m.createSession != nil {
 		return m.createSession(ctx, aid, mid)
 	}
+
 	return "mock-session-id", nil
 }
+
 func (m *mockStore) EndSession(ctx context.Context, sid string, end time.Time) error {
 	if m.endSession != nil {
 		return m.endSession(ctx, sid, end)
 	}
+
 	return nil
 }
+
 func (m *mockStore) ValidateSession(ctx context.Context, sid string) (bool, string, string, error) {
 	if m.validateSession != nil {
 		return m.validateSession(ctx, sid)
 	}
+
 	return true, "user-1", "machine-1", nil
 }
+
 func (m *mockStore) InsertHeartbeat(ctx context.Context, hb atkshared.HeartbeatPayload) error {
 	if m.insertHeartbeat != nil {
 		return m.insertHeartbeat(ctx, hb)
 	}
+
 	return nil
 }
+
 func (m *mockStore) CountActiveSessions(ctx context.Context, aid string) (int, error) {
 	if m.countActive != nil {
 		return m.countActive(ctx, aid)
 	}
+
 	return 0, nil
 }
+
 func (m *mockStore) LiveRawSeries(ctx context.Context, aid string, from, to time.Time) ([]atkshared.HistoricalPoint, error) {
 	if m.liveRawSeries != nil {
 		return m.liveRawSeries(ctx, aid, from, to)
 	}
+
 	return nil, nil
 }
+
 func (m *mockStore) DailySummarySeries(ctx context.Context, aid string, from, to time.Time) ([]atkshared.HistoricalPoint, error) {
 	if m.dailySummarySeries != nil {
 		return m.dailySummarySeries(ctx, aid, from, to)
 	}
+
 	return nil, nil
 }
 
@@ -73,6 +86,7 @@ func (m *mockStore) DailySummarySeries(ctx context.Context, aid string, from, to
 
 func newTestHandler(store DataStore, apiKey string) *Handler {
 	tr := live.NewTracker(10 * time.Minute)
+
 	return NewHandlerWithKey(store, tr, apiKey)
 }
 
@@ -82,21 +96,26 @@ func jsonBody(t *testing.T, v interface{}) *bytes.Reader {
 	if err != nil {
 		t.Fatalf("marshal body: %v", err)
 	}
+
 	return bytes.NewReader(b)
 }
 
 func doRequest(handler http.Handler, method, path string, body *bytes.Reader, headers map[string]string) *httptest.ResponseRecorder {
 	var req *http.Request
+
 	if body != nil {
 		req = httptest.NewRequest(method, path, body)
 	} else {
 		req = httptest.NewRequest(method, path, nil)
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+
 	rr := httptest.NewRecorder()
+
 	handler.ServeHTTP(rr, req)
 	return rr
 }
@@ -109,6 +128,7 @@ func TestRequireAPIKey_NoKeyConfigured_PassesThrough(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
@@ -118,6 +138,7 @@ func TestRequireAPIKey_ValidXAPIKey(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "secret-key")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, map[string]string{"X-API-Key": "secret-key"})
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
@@ -127,6 +148,7 @@ func TestRequireAPIKey_ValidBearerToken(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "secret-key")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, map[string]string{"Authorization": "Bearer secret-key"})
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
@@ -136,6 +158,7 @@ func TestRequireAPIKey_MissingKey(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "secret-key")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rr.Code)
 	}
@@ -145,6 +168,7 @@ func TestRequireAPIKey_WrongKey(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "secret-key")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, map[string]string{"X-API-Key": "wrong-key"})
+
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rr.Code)
 	}
@@ -153,6 +177,7 @@ func TestRequireAPIKey_WrongKey(t *testing.T) {
 func TestRequireAPIKey_ReadEndpointsPublic(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "secret-key")
 	rr := doRequest(h.Routes(), http.MethodGet, "/live", nil, nil)
+
 	if rr.Code != http.StatusOK {
 		t.Fatalf("GET /live should be public, got %d", rr.Code)
 	}
@@ -168,19 +193,24 @@ func TestCreateSession_Success(t *testing.T) {
 			if aid != "alice" || mid != "node-1" {
 				t.Fatalf("unexpected args: %s, %s", aid, mid)
 			}
+
 			return "new-sid", nil
 		},
 	}
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "alice", MachineID: "node-1"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
+
 	var resp atkshared.CreateSessionResponse
+
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatal(err)
 	}
+
 	if resp.SessionID != "new-sid" {
 		t.Fatalf("expected session_id 'new-sid', got %q", resp.SessionID)
 	}
@@ -195,11 +225,13 @@ func TestCreateSession_MissingFields(t *testing.T) {
 		{"empty machine_id", atkshared.CreateSessionRequest{ApprenticeID: "a"}},
 		{"both empty", atkshared.CreateSessionRequest{}},
 	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newTestHandler(&mockStore{}, "")
 			body := jsonBody(t, tc.req)
 			rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 			if rr.Code != http.StatusBadRequest {
 				t.Fatalf("expected 400, got %d", rr.Code)
 			}
@@ -210,6 +242,7 @@ func TestCreateSession_MissingFields(t *testing.T) {
 func TestCreateSession_InvalidJSON(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", bytes.NewReader([]byte("not json")), nil)
+
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -224,6 +257,7 @@ func TestCreateSession_ConcurrentSessionCap(t *testing.T) {
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("expected 409 when at session cap, got %d: %s", rr.Code, rr.Body.String())
 	}
@@ -238,6 +272,7 @@ func TestCreateSession_CountActiveError(t *testing.T) {
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
@@ -252,6 +287,7 @@ func TestCreateSession_StoreError(t *testing.T) {
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.CreateSessionRequest{ApprenticeID: "a", MachineID: "m"})
 	rr := doRequest(h.Routes(), http.MethodPost, "/sessions", body, nil)
+
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
@@ -269,15 +305,18 @@ func TestEndSession_Success(t *testing.T) {
 			if sid != "sess-42" {
 				t.Fatalf("unexpected session id: %s", sid)
 			}
+
 			return nil
 		},
 	}
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.EndSessionRequest{EndTime: time.Now().UTC()})
 	rr := doRequest(h.Routes(), http.MethodPut, "/sessions/sess-42/end", body, nil)
+
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
+
 	if !called {
 		t.Fatal("EndSession was not called on store")
 	}
@@ -292,6 +331,7 @@ func TestEndSession_NotFound(t *testing.T) {
 	h := newTestHandler(store, "")
 	body := jsonBody(t, atkshared.EndSessionRequest{EndTime: time.Now().UTC()})
 	rr := doRequest(h.Routes(), http.MethodPut, "/sessions/no-exist/end", body, nil)
+
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rr.Code)
 	}
@@ -300,6 +340,7 @@ func TestEndSession_NotFound(t *testing.T) {
 func TestEndSession_InvalidBody(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	rr := doRequest(h.Routes(), http.MethodPut, "/sessions/sess-1/end", bytes.NewReader([]byte("bad")), nil)
+
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -325,9 +366,11 @@ func TestCreateHeartbeat_Success(t *testing.T) {
 	}
 	body := jsonBody(t, payload)
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", body, nil)
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
+
 	if captured.ApprenticeID != "user-1" {
 		t.Fatalf("expected handler to enrich apprentice_id from session, got %q", captured.ApprenticeID)
 	}
@@ -337,6 +380,7 @@ func TestCreateHeartbeat_MissingSessionID(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	payload := atkshared.HeartbeatPayload{Timestamp: time.Now(), Duration: 100}
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", jsonBody(t, payload), nil)
+
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -346,6 +390,7 @@ func TestCreateHeartbeat_MissingTimestamp(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	payload := atkshared.HeartbeatPayload{SessionID: "s", Duration: 100}
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", jsonBody(t, payload), nil)
+
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rr.Code)
 	}
@@ -360,10 +405,12 @@ func TestCreateHeartbeat_InvalidDuration(t *testing.T) {
 		{"negative", -1},
 		{"over max", 301},
 	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			payload := atkshared.HeartbeatPayload{SessionID: "s", Timestamp: time.Now(), Duration: tc.duration}
 			rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", jsonBody(t, payload), nil)
+
 			if rr.Code != http.StatusBadRequest {
 				t.Fatalf("expected 400, got %d", rr.Code)
 			}
@@ -380,6 +427,7 @@ func TestCreateHeartbeat_InvalidSession(t *testing.T) {
 	h := newTestHandler(store, "")
 	payload := atkshared.HeartbeatPayload{SessionID: "bad", Timestamp: time.Now(), Duration: 100}
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", jsonBody(t, payload), nil)
+
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 for invalid session, got %d", rr.Code)
 	}
@@ -394,6 +442,7 @@ func TestCreateHeartbeat_InsertError(t *testing.T) {
 	h := newTestHandler(store, "")
 	payload := atkshared.HeartbeatPayload{SessionID: "s", Timestamp: time.Now(), Duration: 100}
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", jsonBody(t, payload), nil)
+
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
@@ -410,10 +459,13 @@ func TestCreateHeartbeat_RecentTouchesLiveTracker(t *testing.T) {
 	}
 	body := jsonBody(t, payload)
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", body, nil)
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", rr.Code)
 	}
+
 	entries := tracker.List(time.Now().UTC())
+
 	if len(entries) != 1 {
 		t.Fatalf("expected live tracker to have 1 entry, got %d", len(entries))
 	}
@@ -430,10 +482,13 @@ func TestCreateHeartbeat_OldTimestampSkipsLiveTracker(t *testing.T) {
 	}
 	body := jsonBody(t, payload)
 	rr := doRequest(h.Routes(), http.MethodPost, "/heartbeats", body, nil)
+
 	if rr.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", rr.Code)
 	}
+
 	entries := tracker.List(time.Now().UTC())
+
 	if len(entries) != 0 {
 		t.Fatalf("old heartbeat should not touch live tracker, got %d entries", len(entries))
 	}
@@ -446,9 +501,11 @@ func TestCreateHeartbeat_OldTimestampSkipsLiveTracker(t *testing.T) {
 func TestLiveView_ReturnsJSON(t *testing.T) {
 	h := newTestHandler(&mockStore{}, "")
 	rr := doRequest(h.Routes(), http.MethodGet, "/live", nil, nil)
+
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
+
 	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
 		t.Fatalf("expected application/json, got %s", ct)
 	}
@@ -461,6 +518,7 @@ func TestLiveView_ReturnsJSON(t *testing.T) {
 func TestParseRange_InvalidFromDate(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/?from=not-a-date&to=2026-03-07", nil)
 	_, _, err := parseRange(r)
+
 	if err == nil {
 		t.Fatal("expected error for invalid from date")
 	}
@@ -469,6 +527,7 @@ func TestParseRange_InvalidFromDate(t *testing.T) {
 func TestParseRange_InvalidToDate(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/?from=2026-03-01&to=not-a-date", nil)
 	_, _, err := parseRange(r)
+
 	if err == nil {
 		t.Fatal("expected error for invalid to date")
 	}
@@ -492,6 +551,7 @@ func TestParseRange_SameDayRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if from.Format("2006-01-02") != "2026-03-15" {
 		t.Fatalf("unexpected from: %s", from)
 	}

@@ -7,6 +7,7 @@ import (
 
 func TestNew_DefaultWindow(t *testing.T) {
 	agg := New(0)
+
 	if agg.windowSeconds != 300 {
 		t.Fatalf("expected default 300s window, got %d", agg.windowSeconds)
 	}
@@ -14,6 +15,7 @@ func TestNew_DefaultWindow(t *testing.T) {
 
 func TestNew_NegativeWindow(t *testing.T) {
 	agg := New(-5 * time.Second)
+
 	if agg.windowSeconds != 300 {
 		t.Fatalf("expected default 300s for negative input, got %d", agg.windowSeconds)
 	}
@@ -21,6 +23,7 @@ func TestNew_NegativeWindow(t *testing.T) {
 
 func TestNew_CustomWindow(t *testing.T) {
 	agg := New(10 * time.Second)
+
 	if agg.windowSeconds != 10 {
 		t.Fatalf("expected 10s window, got %d", agg.windowSeconds)
 	}
@@ -41,12 +44,14 @@ func TestAggregator_EmitsWindowSummary(t *testing.T) {
 		if got.ActiveSeconds < 1 || got.ActiveSeconds > 2 {
 			t.Fatalf("expected active seconds in [1,2], got %d", got.ActiveSeconds)
 		}
+
 		if got.EndAt.IsZero() {
 			t.Fatal("expected non-zero EndAt")
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for summary")
 	}
+
 	close(stop)
 }
 
@@ -66,6 +71,7 @@ func TestAggregator_NoActivity_ZeroActiveSeconds(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for summary")
 	}
+
 	close(stop)
 }
 
@@ -114,5 +120,6 @@ func TestAggregator_MultipleWindows(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for second window")
 	}
+
 	close(stop)
 }

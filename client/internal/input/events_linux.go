@@ -142,6 +142,7 @@ func streamDevice(path string, stop <-chan struct{}, out chan<- ActivityEvent) {
 	}
 	defer f.Close()
 	stopRead := make(chan struct{})
+
 	go func() {
 		select {
 		case <-stop:
@@ -149,6 +150,7 @@ func streamDevice(path string, stop <-chan struct{}, out chan<- ActivityEvent) {
 		case <-stopRead:
 		}
 	}()
+
 	defer close(stopRead)
 
 	reader := bufio.NewReader(f)
@@ -183,7 +185,9 @@ func parseInputEvent(packet []byte) (bool, error) {
 	if len(packet) != inputEventSize {
 		return false, fmt.Errorf("invalid input_event packet length=%d", len(packet))
 	}
+
 	var ev inputEvent
+
 	if err := binary.Read(bytes.NewReader(packet), binary.LittleEndian, &ev); err != nil {
 		return false, fmt.Errorf("parse input_event: %w", err)
 	}

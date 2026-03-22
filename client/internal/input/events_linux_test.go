@@ -10,6 +10,7 @@ import (
 
 func TestParseInputEvent_MalformedPacket(t *testing.T) {
 	_, err := parseInputEvent([]byte{1, 2, 3})
+
 	if err == nil {
 		t.Fatal("expected error for packet shorter than input_event size")
 	}
@@ -17,6 +18,7 @@ func TestParseInputEvent_MalformedPacket(t *testing.T) {
 
 func TestParseInputEvent_EmptyPacket(t *testing.T) {
 	_, err := parseInputEvent([]byte{})
+
 	if err == nil {
 		t.Fatal("expected error for empty packet")
 	}
@@ -29,6 +31,7 @@ func TestParseInputEvent_KeyEventIsActivity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if !ok {
 		t.Fatal("key event should be reported as activity")
 	}
@@ -41,6 +44,7 @@ func TestParseInputEvent_RelEventIsActivity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if !ok {
 		t.Fatal("relative mouse event should be reported as activity")
 	}
@@ -54,6 +58,7 @@ func TestParseInputEvent_SyncEventIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if ok {
 		t.Fatal("sync event should not be reported as activity")
 	}
@@ -67,6 +72,7 @@ func TestParseInputEvent_AbsEventIgnored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if ok {
 		t.Fatal("absolute event should not be reported as activity")
 	}
@@ -84,6 +90,7 @@ func TestParseInputEvent_WithTimestamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if !ok {
 		t.Fatal("key event with timestamp should be activity")
 	}
@@ -92,8 +99,10 @@ func TestParseInputEvent_WithTimestamp(t *testing.T) {
 func encodeEvent(t *testing.T, ev inputEvent) []byte {
 	t.Helper()
 	buf := new(bytes.Buffer)
+
 	if err := binary.Write(buf, binary.LittleEndian, ev); err != nil {
 		t.Fatalf("encode input event: %v", err)
 	}
+
 	return buf.Bytes()
 }

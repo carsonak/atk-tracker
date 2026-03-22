@@ -21,6 +21,7 @@ func NewWorker(store *db.Store, interval time.Duration) *Worker {
 	}
 
 	loc := time.UTC
+
 	if tz := os.Getenv("TZ"); tz != "" {
 		if parsed, err := time.LoadLocation(tz); err == nil {
 			loc = parsed

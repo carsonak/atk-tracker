@@ -15,6 +15,7 @@ func TestTracker_Touch_And_List_Active(t *testing.T) {
 	tr.Touch("bob", "node-2", now.Add(-1*time.Minute))
 
 	list := tr.List(now)
+
 	if len(list) != 2 {
 		t.Fatalf("expected 2 active, got %d", len(list))
 	}
@@ -28,9 +29,11 @@ func TestTracker_List_ExcludesExpired(t *testing.T) {
 	tr.Touch("bob", "node-2", now.Add(-2*time.Minute))
 
 	list := tr.List(now)
+
 	if len(list) != 1 {
 		t.Fatalf("expected 1 active, got %d", len(list))
 	}
+
 	if list[0].ApprenticeID != "alice" {
 		t.Fatalf("expected alice, got %s", list[0].ApprenticeID)
 	}
@@ -44,9 +47,11 @@ func TestTracker_Touch_UpdatesExistingEntry(t *testing.T) {
 	tr.Touch("alice", "node-1", now) // refresh
 
 	list := tr.List(now)
+
 	if len(list) != 1 {
 		t.Fatalf("expected 1 entry (updated), got %d", len(list))
 	}
+
 	if !list[0].LastSeen.Equal(now) {
 		t.Fatalf("expected LastSeen to be updated to %v, got %v", now, list[0].LastSeen)
 	}
@@ -60,6 +65,7 @@ func TestTracker_SameUser_DifferentMachines(t *testing.T) {
 	tr.Touch("alice", "node-2", now)
 
 	list := tr.List(now)
+
 	if len(list) != 2 {
 		t.Fatalf("expected 2 entries for same user on different machines, got %d", len(list))
 	}
@@ -68,9 +74,11 @@ func TestTracker_SameUser_DifferentMachines(t *testing.T) {
 func TestTracker_List_EmptyTracker(t *testing.T) {
 	tr := NewTracker(5 * time.Minute)
 	list := tr.List(time.Now().UTC())
+
 	if list == nil {
 		t.Fatal("expected non-nil empty slice")
 	}
+
 	if len(list) != 0 {
 		t.Fatalf("expected 0 entries, got %d", len(list))
 	}
@@ -98,6 +106,7 @@ func TestTracker_JustPastTTLBoundary(t *testing.T) {
 	tr.Touch("alice", "node-1", now.Add(-ttl-time.Millisecond))
 
 	list := tr.List(now)
+
 	if len(list) != 0 {
 		t.Fatalf("expected 0 just past boundary, got %d", len(list))
 	}
@@ -140,6 +149,7 @@ func TestTracker_ConcurrentTouchAndList(t *testing.T) {
 	now := time.Now().UTC()
 
 	var wg sync.WaitGroup
+
 	for i := 0; i < 50; i++ {
 		wg.Add(2)
 		go func(i int) {
@@ -151,9 +161,11 @@ func TestTracker_ConcurrentTouchAndList(t *testing.T) {
 			_ = tr.List(now)
 		}()
 	}
+
 	wg.Wait()
 
 	list := tr.List(now)
+
 	if len(list) != 1 {
 		t.Fatalf("expected 1 entry after concurrent ops, got %d", len(list))
 	}
@@ -164,6 +176,7 @@ func TestTracker_StartCleanup_StopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	done := make(chan struct{})
+
 	go func() {
 		tr.StartCleanup(ctx)
 		close(done)
@@ -198,9 +211,11 @@ func TestTracker_StartSessionReaper_ClosesStale(t *testing.T) {
 	closer := &mockSessionCloser{result: 3}
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	defer cancel()
 
 	done := make(chan struct{})
+
 	go func() {
 		tr.StartSessionReaper(ctx, closer, 200*time.Millisecond)
 		close(done)
@@ -225,6 +240,7 @@ func TestTracker_StartSessionReaper_StopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	done := make(chan struct{})
+
 	go func() {
 		tr.StartSessionReaper(ctx, closer, 1*time.Second)
 		close(done)
@@ -237,4 +253,3 @@ func TestTracker_StartSessionReaper_StopsOnCancel(t *testing.T) {
 		t.Fatal("StartSessionReaper did not stop after context cancel")
 	}
 }
-

@@ -29,6 +29,7 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 	go func() {
 		defer close(out)
 		secTicker := time.NewTicker(1 * time.Second)
+
 		defer secTicker.Stop()
 
 		activeThisSecond := false
@@ -45,6 +46,7 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 				if activeThisSecond {
 					activeSeconds++
 				}
+
 				ticks++
 				activeThisSecond = false
 				if ticks >= a.windowSeconds {
@@ -52,6 +54,7 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 					case out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}:
 					default:
 					}
+
 					activeSeconds = 0
 					ticks = 0
 				}

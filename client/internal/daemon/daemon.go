@@ -227,8 +227,10 @@ func (d *Daemon) flushAndEndSession(ctx context.Context) {
 func uidToApprentice(uid uint32) string {
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 	usr, err := user.LookupId(uidStr)
+
 	if err != nil || usr == nil || usr.Username == "" {
 		return "uid-" + uidStr
 	}
+
 	return usr.Username
 }

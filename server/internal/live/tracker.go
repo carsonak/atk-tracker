@@ -51,10 +51,13 @@ func (t *Tracker) List(now time.Time) []atkshared.LivePresence {
 
 func (t *Tracker) StartCleanup(ctx context.Context) {
 	interval := t.ttl / 2
+
 	if interval <= 0 {
 		interval = 1 * time.Minute
 	}
+
 	ticker := time.NewTicker(interval)
+
 	defer ticker.Stop()
 
 	for {
@@ -86,10 +89,13 @@ func compositeKey(apprenticeID, machineID string) string {
 // a heartbeat within the given staleThreshold (e.g. 30 minutes).
 func (t *Tracker) StartSessionReaper(ctx context.Context, closer SessionCloser, staleThreshold time.Duration) {
 	interval := staleThreshold / 2
+
 	if interval <= 0 {
 		interval = 5 * time.Minute
 	}
+
 	ticker := time.NewTicker(interval)
+
 	defer ticker.Stop()
 
 	for {
