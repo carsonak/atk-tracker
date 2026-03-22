@@ -34,6 +34,7 @@ func main() {
 
 	worker := rollup.NewWorker(store, 24*time.Hour)
 
+	go liveTracker.StartCleanup(ctx)
 	go worker.Start(ctx)
 
 	srv := &http.Server{
