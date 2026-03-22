@@ -131,6 +131,15 @@ func streamDevice(path string, stop <-chan struct{}, out chan<- ActivityEvent) {
 		return
 	}
 	defer f.Close()
+	stopRead := make(chan struct{})
+	go func() {
+		select {
+		case <-stop:
+			_ = f.Close()
+		case <-stopRead:
+		}
+	}()
+	defer close(stopRead)
 
 	reader := bufio.NewReader(f)
 	packet := make([]byte, 24)

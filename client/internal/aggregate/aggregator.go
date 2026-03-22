@@ -48,7 +48,10 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 				ticks++
 				activeThisSecond = false
 				if ticks >= a.windowSeconds {
-					out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}
+					select {
+					case out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}:
+					default:
+					}
 					activeSeconds = 0
 					ticks = 0
 				}
