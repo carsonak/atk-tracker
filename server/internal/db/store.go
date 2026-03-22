@@ -112,7 +112,7 @@ func (s *Store) LiveRawSeries(ctx context.Context, apprenticeID string, from, to
 			return nil, err
 		}
 
-		out = append(out, atkshared.HistoricalPoint{Timestamp: ts.UTC(), ActiveMins: secs / 60})
+		out = append(out, atkshared.HistoricalPoint{Timestamp: ts.UTC(), ActiveMins: float64(secs) / 60.0})
 	}
 
 	return out, rows.Err()

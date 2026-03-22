@@ -33,7 +33,7 @@ type LivePresence struct {
 
 type HistoricalPoint struct {
 	Timestamp   time.Time `json:"timestamp"`
-	ActiveMins  int       `json:"active_minutes"`
+	ActiveMins  float64   `json:"active_minutes"`
 	ActiveHours float64   `json:"active_hours"`
 }
 
