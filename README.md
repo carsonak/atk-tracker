@@ -86,7 +86,7 @@ npm install
 VITE_API_URL="http://127.0.0.1:8080" npm run dev
 ```
 
-Open http://127.0.0.1:5173 and query a demo apprentice such as demo-anna.
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and query a demo apprentice such as demo-anna.
 
 ## Build and Test
 

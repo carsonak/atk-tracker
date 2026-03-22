@@ -144,6 +144,7 @@ func (d *Daemon) handleDBusEvent(ctx context.Context, ev dbuswatch.SessionEvent)
 			return
 		}
 
+		d.flushAndEndSession(ctx)
 		d.session.Set(sessionID, apprenticeID)
 	case dbuswatch.SessionRemoved:
 		d.flushAndEndSession(ctx)
