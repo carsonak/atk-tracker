@@ -1,8 +1,8 @@
 package input
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -188,7 +188,7 @@ func parseInputEvent(packet []byte) (bool, error) {
 		return false, fmt.Errorf("parse input_event: %w", err)
 	}
 
- 	evType := ev.Type
+	evType := ev.Type
 
 	return evType == evKey || evType == evRel, nil
 }

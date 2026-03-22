@@ -2,6 +2,8 @@
 bin/
 *.test
 *.out
+client/atk-client
+server/atk-server
 
 # Local DBs
 *.db
