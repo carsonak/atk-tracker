@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_DB: atk_tracker
+      POSTGRES_USER: atk
+      POSTGRES_PASSWORD: atk_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atk -d atk_tracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ATK_DATABASE_URL: "postgres://atk:atk_dev_password@postgres:5432/atk_tracker?sslmode=disable"
+      ATK_SERVER_ADDR: ":8080"
+      ATK_API_KEY: "${ATK_API_KEY:-}"
+      TZ: "${TZ:-UTC}"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./admin-frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - server
+    environment:
+      VITE_API_URL: "http://localhost:8080"
+    ports:
+      - "5173:5173"
+
+volumes:
+  pgdata:

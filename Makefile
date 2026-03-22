@@ -1,4 +1,4 @@
-.PHONY: test-client test-server build-client build-server db-migrate db-seed-demo run-server run-client run-frontend
+.PHONY: test-client test-server test build-client build-server db-migrate db-seed-demo run-server run-client run-frontend up down
 
 ATK_DATABASE_URL ?= postgres://localhost:5432/atk_tracker?sslmode=disable
 
@@ -7,6 +7,8 @@ test-client:
 
 test-server:
 	cd server && go test ./...
+
+test: test-client test-server
 
 build-client:
 	cd client && go build ./cmd/atk-client
@@ -30,3 +32,9 @@ run-client:
 
 run-frontend:
 	cd admin-frontend && VITE_API_URL="http://127.0.0.1:8080" npm run dev
+
+up:
+	docker compose up --build -d
+
+down:
+	docker compose down
