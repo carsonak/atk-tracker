@@ -168,8 +168,13 @@ heartbeat_windows AS (
 ),
 expanded AS (
   SELECT apprentice_id,
-         generate_series(window_start, window_end - interval '1 second', interval '1 second') AS sec
+				 generate_series(
+						 window_end - (active_seconds || ' seconds')::interval,
+						 window_end - interval '1 second',
+						 interval '1 second'
+				 ) AS sec
   FROM heartbeat_windows
+	WHERE active_seconds > 0
 ),
 flattened AS (
   SELECT apprentice_id, sec
