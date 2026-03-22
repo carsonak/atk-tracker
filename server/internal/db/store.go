@@ -19,7 +19,19 @@ type Store struct {
 }
 
 func NewStore(ctx context.Context, dsn string) (*Store, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Connection pool tuning for production workloads.
+	config.MinConns = 2
+	config.MaxConns = 20
+	config.MaxConnLifetime = 30 * time.Minute
+	config.MaxConnIdleTime = 5 * time.Minute
+	config.HealthCheckPeriod = 1 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -33,6 +45,35 @@ func NewStore(ctx context.Context, dsn string) (*Store, error) {
 
 func (s *Store) Close() {
 	s.pool.Close()
+}
+
+func (s *Store) CountActiveSessions(ctx context.Context, apprenticeID string) (int, error) {
+	var count int
+	err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM sessions
+		WHERE apprentice_id = $1 AND logout_time IS NULL
+	`, apprenticeID).Scan(&count)
+	return count, err
+}
+
+func (s *Store) CloseStaleSessions(ctx context.Context, staleThreshold time.Duration) (int64, error) {
+	cutoff := time.Now().UTC().Add(-staleThreshold)
+	cmd, err := s.pool.Exec(ctx, `
+		UPDATE sessions
+		SET logout_time = NOW()
+		WHERE logout_time IS NULL
+		  AND id IN (
+		    SELECT s.id
+		    FROM sessions s
+		    LEFT JOIN raw_heartbeats r ON r.session_id = s.id
+		    GROUP BY s.id
+		    HAVING COALESCE(MAX(r.ts), s.login_time) < $1
+		  )
+	`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return cmd.RowsAffected(), nil
 }
 
 func (s *Store) CreateSession(ctx context.Context, apprenticeID, machineID string) (string, error) {
@@ -146,25 +187,24 @@ func (s *Store) DailySummarySeries(ctx context.Context, apprenticeID string, fro
 	return out, rows.Err()
 }
 
-func (s *Store) RollupPreviousDay(ctx context.Context, day time.Time) error {
-	_, err := s.pool.Exec(ctx, rollupSQL, day.UTC())
-
+func (s *Store) RollupPreviousDay(ctx context.Context, day time.Time, loc *time.Location) error {
+	// Compute the day boundaries in the configured timezone, then convert to UTC for the query.
+	localDay := day.In(loc)
+	startOfDay := time.Date(localDay.Year(), localDay.Month(), localDay.Day(), 0, 0, 0, 0, loc).UTC()
+	endOfDay := startOfDay.Add(24 * time.Hour)
+	_, err := s.pool.Exec(ctx, rollupSQL, startOfDay, endOfDay)
 	return err
 }
 
 const rollupSQL = `
-WITH target_day AS (
-  SELECT date_trunc('day', $1::timestamptz) AS d0,
-         date_trunc('day', $1::timestamptz) + interval '1 day' AS d1
-),
-heartbeat_windows AS (
+WITH heartbeat_windows AS (
   SELECT s.apprentice_id,
          r.ts - interval '5 minute' AS window_start,
          r.ts AS window_end,
          LEAST(300, GREATEST(0, r.active_seconds)) AS active_seconds
   FROM raw_heartbeats r
   JOIN sessions s ON s.id = r.session_id
-  JOIN target_day t ON r.ts >= t.d0 AND r.ts < t.d1
+  WHERE r.ts >= $1 AND r.ts < $2
 ),
 expanded AS (
   SELECT apprentice_id,
@@ -182,11 +222,11 @@ flattened AS (
   GROUP BY apprentice_id, sec
 ),
 aggregated AS (
-  SELECT date_trunc('day', sec) AS summary_date,
+  SELECT ($1::date) AS summary_date,
          apprentice_id,
          COUNT(*)::int / 60 AS total_active_minutes
   FROM flattened
-  GROUP BY 1, 2
+  GROUP BY apprentice_id
 )
 INSERT INTO daily_summaries(summary_date, apprentice_id, total_active_minutes)
 SELECT summary_date, apprentice_id, total_active_minutes
