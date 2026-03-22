@@ -8,16 +8,17 @@ Type=simple
 ExecStart=/usr/local/bin/atk-client
 Restart=always
 RestartSec=5
-User=root
-Group=input
+User=atk-tracker
+Group=atk-tracker
+SupplementaryGroups=input
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 PrivateDevices=false
 ReadWritePaths=/var/lib/atk-tracker
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH
-AmbientCapabilities=CAP_DAC_READ_SEARCH
+CapabilityBoundingSet=
+AmbientCapabilities=
 
 [Install]
 WantedBy=multi-user.target
