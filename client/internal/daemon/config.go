@@ -18,6 +18,7 @@ type Config struct {
 
 func LoadConfigFromEnv() Config {
 	windowSeconds := envInt("ATK_HEARTBEAT_WINDOW_SECONDS", 300)
+
 	return Config{
 		ServerURL:         envOrDefault("ATK_SERVER_URL", "http://127.0.0.1:8080"),
 		MachineID:         envOrDefault("ATK_MACHINE_ID", "unknown-machine"),
@@ -33,17 +34,21 @@ func envOrDefault(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
+
 	return fallback
 }
 
 func envInt(key string, fallback int) int {
 	value := os.Getenv(key)
+
 	if value == "" {
 		return fallback
 	}
+
 	parsed, err := strconv.Atoi(value)
 	if err != nil {
 		return fallback
 	}
+
 	return parsed
 }

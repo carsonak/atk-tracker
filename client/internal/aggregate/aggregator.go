@@ -15,24 +15,30 @@ type Aggregator struct {
 
 func New(window time.Duration) *Aggregator {
 	seconds := int(window.Seconds())
+
 	if seconds <= 0 {
 		seconds = 300
 	}
+
 	return &Aggregator{windowSeconds: seconds}
 }
 
 func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan TickSummary {
 	out := make(chan TickSummary, 4)
+
 	go func() {
 		defer close(out)
 		secTicker := time.NewTicker(1 * time.Second)
+
 		defer secTicker.Stop()
 
 		windowTicker := time.NewTicker(time.Duration(a.windowSeconds) * time.Second)
+
 		defer windowTicker.Stop()
 
 		activeThisSecond := false
 		activeSeconds := 0
+
 		for {
 			select {
 			case <-stop:
@@ -43,6 +49,7 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 				if activeThisSecond {
 					activeSeconds++
 				}
+
 				activeThisSecond = false
 			case t := <-windowTicker.C:
 				out <- TickSummary{EndAt: t.UTC(), ActiveSeconds: activeSeconds}
@@ -50,5 +57,6 @@ func (a *Aggregator) Run(events <-chan struct{}, stop <-chan struct{}) <-chan Ti
 			}
 		}
 	}()
+
 	return out
 }

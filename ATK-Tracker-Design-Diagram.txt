@@ -62,7 +62,7 @@
 | Relational DB             |       | - id, apprentice_id, machine_id   |
 | (e.g., PostgreSQL)        |       | - login_time, logout_time         |
 |                           |       |                                   |
-|                           |       | raw_heartbeats (30-Day TTL)       |
+|                           |       | raw_heartbeats (90-Day TTL)       |
 | Nightly Aggregation Job   |       | - id, session_id                  |
 | rolls up raw logs into    |       | - timestamp      <-- indexed      |
 | daily summaries to        |       | - active_seconds <-- (0 to 300)   |

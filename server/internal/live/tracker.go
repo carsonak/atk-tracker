@@ -31,10 +31,12 @@ func (t *Tracker) List(now time.Time) []atkshared.LivePresence {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	out := make([]atkshared.LivePresence, 0, len(t.lastSeen))
+
 	for _, p := range t.lastSeen {
 		if now.UTC().Sub(p.LastSeen) <= t.ttl {
 			out = append(out, p)
 		}
 	}
+
 	return out
 }

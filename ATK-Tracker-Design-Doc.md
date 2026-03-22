@@ -117,7 +117,7 @@ To prevent millions of rows from slowing down the server over a 1.5-year cohort 
 the database uses a Rollup strategy:
 
 * **`raw_heartbeats` Table:** Stores the exact 5-minute interval payloads.
-A TTL script automatically deletes rows older than 30 days.
+A TTL script automatically deletes rows older than 90 days.
 * **`daily_summaries` Table:** A permanent archive.
 A nightly cron job sums the `raw_heartbeats` for the day and writes a single row per user
 (e.g., `User X, Date Y, Total_Active: 420 mins`).
@@ -152,7 +152,7 @@ while offering massive concurrent request scaling for the backend.
 traffic to ~0.66 requests per second (even during high capacity) and entirely eliminate
 privacy risks associated with transmitting raw keystrokes.
 * **Data Rollup vs. Infinite Storage:** Selected to ensure the system remains extremely cheap
-to host. The trade-off is losing minute-by-minute granularity for records older than 30 days,
+to host. The trade-off is losing minute-by-minute granularity for records older than 90 days,
 which is acceptable for attendance tracking.
 
 ## 9. Future Plans

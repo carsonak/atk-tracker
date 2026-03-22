@@ -22,5 +22,6 @@ func TestAggregatorEmitsWindowSummary(t *testing.T) {
 	case <-time.After(4 * time.Second):
 		t.Fatal("timed out waiting for summary")
 	}
+
 	close(stop)
 }

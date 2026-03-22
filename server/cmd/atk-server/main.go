@@ -29,9 +29,11 @@ func main() {
 	handler := api.NewHandler(store, liveTracker)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+
 	defer stop()
 
 	worker := rollup.NewWorker(store, 24*time.Hour)
+
 	go worker.Start(ctx)
 
 	srv := &http.Server{
@@ -42,6 +44,7 @@ func main() {
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
 	}()
@@ -56,5 +59,6 @@ func envOrDefault(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
+
 	return fallback
 }

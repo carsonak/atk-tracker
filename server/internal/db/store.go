@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"atk-tracker/shared/go/atkshared"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,9 +23,11 @@ func NewStore(ctx context.Context, dsn string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if err := pool.Ping(ctx); err != nil {
 		return nil, err
 	}
+
 	return &Store{pool: pool}, nil
 }
 
@@ -38,6 +41,7 @@ func (s *Store) CreateSession(ctx context.Context, apprenticeID, machineID strin
 		INSERT INTO sessions(id, apprentice_id, machine_id, login_time)
 		VALUES($1, $2, $3, NOW())
 	`, sid, apprenticeID, machineID)
+
 	return sid, err
 }
 
@@ -50,9 +54,11 @@ func (s *Store) EndSession(ctx context.Context, sessionID string, endTime time.T
 	if err != nil {
 		return err
 	}
+
 	if cmd.RowsAffected() == 0 {
 		return ErrSessionNotFound
 	}
+
 	return nil
 }
 
@@ -67,8 +73,10 @@ func (s *Store) ValidateSession(ctx context.Context, sessionID string) (bool, st
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, "", "", nil
 		}
+
 		return false, "", "", err
 	}
+
 	return true, apprenticeID, machineID, nil
 }
 
@@ -77,6 +85,7 @@ func (s *Store) InsertHeartbeat(ctx context.Context, hb atkshared.HeartbeatPaylo
 		INSERT INTO raw_heartbeats(session_id, ts, active_seconds)
 		VALUES($1, $2, $3)
 	`, hb.SessionID, hb.Timestamp.UTC(), hb.Duration)
+
 	return err
 }
 
@@ -94,14 +103,18 @@ func (s *Store) LiveRawSeries(ctx context.Context, apprenticeID string, from, to
 	defer rows.Close()
 
 	out := []atkshared.HistoricalPoint{}
+
 	for rows.Next() {
 		var ts time.Time
 		var secs int
+
 		if err := rows.Scan(&ts, &secs); err != nil {
 			return nil, err
 		}
+
 		out = append(out, atkshared.HistoricalPoint{Timestamp: ts.UTC(), ActiveMins: secs / 60})
 	}
+
 	return out, rows.Err()
 }
 
@@ -118,19 +131,24 @@ func (s *Store) DailySummarySeries(ctx context.Context, apprenticeID string, fro
 	defer rows.Close()
 
 	out := []atkshared.HistoricalPoint{}
+
 	for rows.Next() {
 		var d time.Time
 		var mins int
+
 		if err := rows.Scan(&d, &mins); err != nil {
 			return nil, err
 		}
+
 		out = append(out, atkshared.HistoricalPoint{Timestamp: d.UTC(), ActiveHours: float64(mins) / 60.0})
 	}
+
 	return out, rows.Err()
 }
 
 func (s *Store) RollupPreviousDay(ctx context.Context, day time.Time) error {
 	_, err := s.pool.Exec(ctx, rollupSQL, day.UTC())
+
 	return err
 }
 

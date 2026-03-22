@@ -33,14 +33,17 @@ func New(cfg Config) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	store, err := buffer.New(cfg.BufferPath)
 	if err != nil {
 		return nil, err
 	}
+
 	watcher, err := dbuswatch.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
+
 	return &Daemon{
 		cfg:        cfg,
 		reader:     reader,
@@ -70,6 +73,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	activity := d.reader.Start(d.stop)
 	summaries := d.agg.Run(d.eventPulse, d.stop)
 	flushTicker := time.NewTicker(d.cfg.OfflineFlushEvery)
+
 	defer flushTicker.Stop()
 
 	for {
@@ -81,6 +85,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
+
 			_ = ev
 			select {
 			case d.eventPulse <- struct{}{}:
@@ -90,6 +95,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
+
 			d.handleSummary(ctx, summary)
 		case ev := <-dbusEvents:
 			d.handleDBusEvent(ctx, ev)
@@ -104,18 +110,22 @@ func (d *Daemon) bootstrapSession(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	for _, s := range sessions {
 		if s.UID == 0 {
 			continue
 		}
+
 		apprenticeID := uidToApprentice(s.UID)
 		sessionID, err := d.http.CreateSession(ctx, apprenticeID, d.cfg.MachineID)
 		if err != nil {
 			return err
 		}
+
 		d.session.Set(sessionID, apprenticeID)
 		return nil
 	}
+
 	return nil
 }
 
@@ -125,12 +135,14 @@ func (d *Daemon) handleDBusEvent(ctx context.Context, ev dbuswatch.SessionEvent)
 		if ev.UID == 0 {
 			return
 		}
+
 		apprenticeID := uidToApprentice(ev.UID)
 		sessionID, err := d.http.CreateSession(ctx, apprenticeID, d.cfg.MachineID)
 		if err != nil {
 			log.Printf("session create failed: %v", err)
 			return
 		}
+
 		d.session.Set(sessionID, apprenticeID)
 	case dbuswatch.SessionRemoved:
 		d.flushAndEndSession(ctx)
@@ -144,9 +156,11 @@ func (d *Daemon) handleDBusEvent(ctx context.Context, ev dbuswatch.SessionEvent)
 
 func (d *Daemon) handleSummary(ctx context.Context, s aggregate.TickSummary) {
 	sessionID, apprenticeID := d.session.Get()
+
 	if sessionID == "" {
 		return
 	}
+
 	payload := atkshared.HeartbeatPayload{
 		SessionID:    sessionID,
 		Timestamp:    s.EndAt.UTC(),
@@ -154,10 +168,12 @@ func (d *Daemon) handleSummary(ctx context.Context, s aggregate.TickSummary) {
 		MachineID:    d.cfg.MachineID,
 		ApprenticeID: apprenticeID,
 	}
+
 	if err := atkshared.ValidateHeartbeatDuration(payload.Duration); err != nil {
 		log.Printf("invalid heartbeat duration: %v", err)
 		return
 	}
+
 	if err := d.http.SendHeartbeat(ctx, payload); err != nil {
 		if errors.Is(err, syncer.ErrSessionInvalid) {
 			if newID, recreateErr := d.http.CreateSession(ctx, apprenticeID, d.cfg.MachineID); recreateErr == nil {
@@ -168,6 +184,7 @@ func (d *Daemon) handleSummary(ctx context.Context, s aggregate.TickSummary) {
 				}
 			}
 		}
+
 		if queueErr := d.buffer.Enqueue(ctx, payload); queueErr != nil {
 			log.Printf("failed to queue heartbeat: %v", queueErr)
 		}
@@ -180,10 +197,12 @@ func (d *Daemon) flushBuffer(ctx context.Context) {
 		log.Printf("buffer dequeue failed: %v", err)
 		return
 	}
+
 	for _, item := range queued {
 		if err := d.http.SendHeartbeat(ctx, item.Payload); err != nil {
 			return
 		}
+
 		if err := d.buffer.DeleteByID(ctx, item.ID); err != nil {
 			log.Printf("buffer cleanup failed id=%d err=%v", item.ID, err)
 		}
@@ -193,9 +212,11 @@ func (d *Daemon) flushBuffer(ctx context.Context) {
 func (d *Daemon) flushAndEndSession(ctx context.Context) {
 	d.flushBuffer(ctx)
 	sid, _ := d.session.Get()
+
 	if sid == "" {
 		return
 	}
+
 	if err := d.http.EndSession(ctx, sid, time.Now().UTC()); err != nil {
 		log.Printf("end session failed: %v", err)
 	}

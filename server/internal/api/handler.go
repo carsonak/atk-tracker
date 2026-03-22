@@ -8,6 +8,7 @@ import (
 	"atk-tracker/server/internal/db"
 	"atk-tracker/server/internal/live"
 	"atk-tracker/shared/go/atkshared"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -22,6 +23,7 @@ func NewHandler(store *db.Store, live *live.Tracker) *Handler {
 
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
+
 	r.Post("/sessions", h.createSession)
 	r.Put("/sessions/{id}/end", h.endSession)
 	r.Post("/heartbeats", h.createHeartbeat)
@@ -32,6 +34,7 @@ func (h *Handler) Routes() http.Handler {
 
 func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 	var req atkshared.CreateSessionRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ApprenticeID == "" || req.MachineID == "" {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
@@ -50,12 +53,14 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+
 	if id == "" {
 		http.Error(w, "missing id", http.StatusBadRequest)
 		return
 	}
 
 	var req atkshared.EndSessionRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
@@ -71,14 +76,17 @@ func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) createHeartbeat(w http.ResponseWriter, r *http.Request) {
 	var hb atkshared.HeartbeatPayload
+
 	if err := json.NewDecoder(r.Body).Decode(&hb); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
 	if hb.SessionID == "" || hb.Timestamp.IsZero() {
 		http.Error(w, "missing required fields", http.StatusBadRequest)
 		return
 	}
+
 	if err := atkshared.ValidateHeartbeatDuration(hb.Duration); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -89,6 +97,7 @@ func (h *Handler) createHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "validation failed", http.StatusInternalServerError)
 		return
 	}
+
 	if !ok {
 		http.Error(w, "invalid session", http.StatusUnauthorized)
 		return
@@ -123,6 +132,7 @@ func (h *Handler) statsView(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "raw query failed", http.StatusInternalServerError)
 		return
 	}
+
 	summary, err := h.store.DailySummarySeries(r.Context(), apprenticeID, from, to)
 	if err != nil {
 		http.Error(w, "summary query failed", http.StatusInternalServerError)
@@ -139,8 +149,10 @@ func (h *Handler) statsView(w http.ResponseWriter, r *http.Request) {
 func parseRange(r *http.Request) (time.Time, time.Time, error) {
 	fromRaw := r.URL.Query().Get("from")
 	toRaw := r.URL.Query().Get("to")
+
 	if fromRaw == "" || toRaw == "" {
 		now := time.Now().UTC()
+
 		return now.Add(-7 * 24 * time.Hour), now, nil
 	}
 
@@ -148,9 +160,11 @@ func parseRange(r *http.Request) (time.Time, time.Time, error) {
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	to, err := time.Parse(time.DateOnly, toRaw)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
+
 	return from.UTC(), to.UTC().Add(24 * time.Hour), nil
 }
