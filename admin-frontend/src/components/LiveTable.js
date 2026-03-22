@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export function LiveTable({ rows }) {
+    return (_jsxs("section", { className: "card", children: [_jsx("h2", { children: "Live Cluster Presence" }), _jsxs("table", { children: [_jsx("thead", { children: _jsxs("tr", { children: [_jsx("th", { children: "Apprentice" }), _jsx("th", { children: "Machine" }), _jsx("th", { children: "Last Seen" })] }) }), _jsxs("tbody", { children: [rows.map((row) => (_jsxs("tr", { children: [_jsx("td", { children: row.apprentice_id }), _jsx("td", { children: row.machine_id }), _jsx("td", { children: new Date(row.last_seen).toLocaleString() })] }, row.apprentice_id + row.machine_id))), rows.length === 0 && (_jsx("tr", { children: _jsx("td", { colSpan: 3, children: "No active apprentices." }) }))] })] })] }));
+}
