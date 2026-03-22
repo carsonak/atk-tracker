@@ -6,14 +6,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     logout_time TIMESTAMPTZ NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_sessions_apprentice_active
+    ON sessions(apprentice_id) WHERE logout_time IS NULL;
+
 CREATE TABLE IF NOT EXISTS raw_heartbeats (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGSERIAL,
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     ts TIMESTAMPTZ NOT NULL,
-    active_seconds INTEGER NOT NULL CHECK (active_seconds BETWEEN 0 AND 300)
-);
+    active_seconds INTEGER NOT NULL CHECK (active_seconds BETWEEN 0 AND 300),
+    PRIMARY KEY (id, ts)
+) PARTITION BY RANGE (ts);
 
-CREATE INDEX IF NOT EXISTS idx_raw_heartbeats_ts ON raw_heartbeats(ts);
 CREATE INDEX IF NOT EXISTS idx_raw_heartbeats_session_id ON raw_heartbeats(session_id);
 
 CREATE TABLE IF NOT EXISTS daily_summaries (
