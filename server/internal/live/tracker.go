@@ -3,11 +3,17 @@ package live
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"atk-tracker/shared/go/atkshared"
 )
+
+// SessionCloser is implemented by db.Store to avoid a circular import.
+type SessionCloser interface {
+	CloseStaleSessions(ctx context.Context, staleThreshold time.Duration) (int64, error)
+}
 
 type Tracker struct {
 	mu       sync.RWMutex
@@ -74,4 +80,29 @@ func (t *Tracker) cleanupExpired(now time.Time) {
 
 func compositeKey(apprenticeID, machineID string) string {
 	return fmt.Sprintf("%s:%s", apprenticeID, machineID)
+}
+
+// StartSessionReaper periodically closes sessions that have not received
+// a heartbeat within the given staleThreshold (e.g. 30 minutes).
+func (t *Tracker) StartSessionReaper(ctx context.Context, closer SessionCloser, staleThreshold time.Duration) {
+	interval := staleThreshold / 2
+	if interval <= 0 {
+		interval = 5 * time.Minute
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			closed, err := closer.CloseStaleSessions(ctx, staleThreshold)
+			if err != nil {
+				log.Printf("session reaper error: %v", err)
+			} else if closed > 0 {
+				log.Printf("session reaper: closed %d stale sessions", closed)
+			}
+		}
+	}
 }

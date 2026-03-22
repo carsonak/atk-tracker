@@ -35,11 +35,17 @@ func main() {
 	worker := rollup.NewWorker(store, 24*time.Hour)
 
 	go liveTracker.StartCleanup(ctx)
+	go liveTracker.StartSessionReaper(ctx, store, 30*time.Minute)
 	go worker.Start(ctx)
 
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: handler.Routes(),
+		Addr:              addr,
+		Handler:           handler.Routes(),
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MB
 	}
 
 	go func() {
