@@ -1,0 +1,73 @@
++-----------------------------------------------------------------------+
+|                         CLIENT AGENT LAYER                            |
++-----------------------------------------------------------------------+
+|             Background Daemon (Go binary via systemd)                 |
+|                                                                       |
+|  - Startup Recon: Query D-Bus ListSessions for existing state         |
+|  - Hardware Filter: Use ioctl bitmasks to find EV_KEY/EV_REL devices  |
+|  - Catch OS Login/Logout events -> Init/End Session                   |
+|  - Monitor HID (/dev/input) -> Calculate 1-sec active buckets         |
+|  - Aggregate -> Sum active seconds over 5-min window                  |
+|  - Local Buffer (SQLite/JSON) -> Store if network is offline          |
+|  - Catch OS Suspend/Logout -> Flush buffer & End Session              |
++-----------------------------------------------------------------------+
+             |                                         ^
+             |  Req (JSON)                             |  Res (JSON)
+             |                                         |
+             |  POST /sessions                         |  201 Created
+             |  { apprentice_id, machine_id }          |  { session_id }
+             |                                         |
+             |  POST /heartbeats                       |  201 Created /
+             |  { session_id, timestamp, duration }    |  400 / 401 / 404
+             |                                         |
+             |  PUT /sessions/{id}/end                 |  200 OK
+             |  { end_time }                           |
+             v                                         |
++-----------------------------------------------------------------------+
+|                               API LAYER                               |
++-----------------------------------------------------------------------+
+|                                                                       |
+|  SessionController                   HeartbeatController              |
+|  POST /sessions                      POST /heartbeats                 |
+|  PUT /sessions/{id}/end                                               |
+|                                                                       |
+|  1. Validate Appr./Machine (Stateless) 1. Validate session is active  |
+|  2. Start DB Transaction               2. Update 'last_seen' map      |
+|  3. Create/Close Session block         3. Insert Heartbeat log        |
+|  4. Return 201 / 200                   4. Return 201 / 40X            |
+|                                                                       |
+|  (StatsController for Admin Dashboard: GET /stats?apprentice_id=)     |
+|  (LiveController for Admin Dashboard: GET /live -> checks last_seen)  |
++-----------------------------------------------------------------------+
+             |                                         ^
+             |  persistence calls                      |
+             v                                         |
++-----------------------------------------------------------------------+
+|                               DB PACKAGE                              |
++-----------------------------------------------------------------------+
+|                                                                       |
+|  createSession(apprentice_id, machine_id)                             |
+|  insertHeartbeat(session_id, timestamp, active_duration)              |
+|  flattenOverlappingTime(apprentice_id, date_range)                    |
+|  rollupDailySummaries() --> triggered via nightly cron/job            |
+|                                                                       |
++-----------------------------------------------------------------------+
+             |                                         ^
+             |  SQL Queries                            |
+             v                                         |
++---------------------------+       +-----------------------------------+
+|         DATABASE          |       |             SCHEMA                |
++---------------------------+       +-----------------------------------+
+|                           |       | Sessions                          |
+| Relational DB             |       | - id, apprentice_id, machine_id   |
+| (e.g., PostgreSQL)        |       | - login_time, logout_time         |
+|                           |       |                                   |
+|                           |       | raw_heartbeats (30-Day TTL)       |
+| Nightly Aggregation Job   |       | - id, session_id                  |
+| rolls up raw logs into    |       | - timestamp      <-- indexed      |
+| daily summaries to        |       | - active_seconds <-- (0 to 300)   |
+| prevent data bloat.       |       |                                   |
+|                           |       | daily_summaries (Forever Archive) |
+|                           |       | - date, apprentice_id             |
+|                           |       | - total_active_minutes            |
++---------------------------+       +-----------------------------------+
