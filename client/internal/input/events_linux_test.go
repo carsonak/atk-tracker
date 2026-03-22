@@ -1,6 +1,10 @@
 package input
 
-import "testing"
+import (
+	"bytes"
+	"encoding/binary"
+	"testing"
+)
 
 func TestParseInputEventMalformedPacket(t *testing.T) {
 	_, err := parseInputEvent([]byte{1, 2, 3})
@@ -11,9 +15,13 @@ func TestParseInputEventMalformedPacket(t *testing.T) {
 }
 
 func TestParseInputEventActivity(t *testing.T) {
-	packet := make([]byte, 24)
-
-	packet[16] = 0x01
+	ev := inputEvent{Type: evKey}
+	packet := make([]byte, inputEventSize)
+	buf := bytes.NewBuffer(packet[:0])
+	if err := binary.Write(buf, binary.LittleEndian, ev); err != nil {
+		t.Fatalf("unexpected encode error: %v", err)
+	}
+	packet = buf.Bytes()
 	ok, err := parseInputEvent(packet)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

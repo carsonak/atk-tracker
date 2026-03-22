@@ -1,6 +1,7 @@
 package input
 
 import (
+	"bytes"
 	"bufio"
 	"encoding/binary"
 	"fmt"
@@ -22,6 +23,15 @@ const (
 type ActivityEvent struct {
 	Timestamp time.Time
 }
+
+type inputEvent struct {
+	Time  unix.Timeval
+	Type  uint16
+	Code  uint16
+	Value int32
+}
+
+var inputEventSize = int(unsafe.Sizeof(inputEvent{}))
 
 type Reader struct {
 	paths []string
@@ -142,7 +152,7 @@ func streamDevice(path string, stop <-chan struct{}, out chan<- ActivityEvent) {
 	defer close(stopRead)
 
 	reader := bufio.NewReader(f)
-	packet := make([]byte, 24)
+	packet := make([]byte, inputEventSize)
 
 	for {
 		select {
@@ -170,11 +180,15 @@ func streamDevice(path string, stop <-chan struct{}, out chan<- ActivityEvent) {
 }
 
 func parseInputEvent(packet []byte) (bool, error) {
-	if len(packet) != 24 {
+	if len(packet) != inputEventSize {
 		return false, fmt.Errorf("invalid input_event packet length=%d", len(packet))
 	}
+	var ev inputEvent
+	if err := binary.Read(bytes.NewReader(packet), binary.LittleEndian, &ev); err != nil {
+		return false, fmt.Errorf("parse input_event: %w", err)
+	}
 
-	evType := binary.LittleEndian.Uint16(packet[16:18])
+ 	evType := ev.Type
 
 	return evType == evKey || evType == evRel, nil
 }
