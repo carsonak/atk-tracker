@@ -1,0 +1,23 @@
+[Unit]
+Description=ATK Tracker Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/atk-client
+Restart=always
+RestartSec=5
+User=root
+Group=input
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=false
+ReadWritePaths=/var/lib/atk-tracker
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+
+[Install]
+WantedBy=multi-user.target
