@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"log"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"atk-tracker/server/internal/db"
 	"atk-tracker/server/internal/live"
 	"atk-tracker/shared/go/atkshared"
 
@@ -18,18 +18,35 @@ import (
 
 const liveHeartbeatRecencyWindow = 5 * time.Minute
 
+// DataStore abstracts the persistence operations the handler requires.
+// Satisfied by *db.Store; enables mock-based unit testing.
+type DataStore interface {
+	CreateSession(ctx context.Context, apprenticeID, machineID string) (string, error)
+	EndSession(ctx context.Context, sessionID string, endTime time.Time) error
+	ValidateSession(ctx context.Context, sessionID string) (ok bool, apprenticeID string, machineID string, err error)
+	InsertHeartbeat(ctx context.Context, hb atkshared.HeartbeatPayload) error
+	CountActiveSessions(ctx context.Context, apprenticeID string) (int, error)
+	LiveRawSeries(ctx context.Context, apprenticeID string, from, to time.Time) ([]atkshared.HistoricalPoint, error)
+	DailySummarySeries(ctx context.Context, apprenticeID string, from, to time.Time) ([]atkshared.HistoricalPoint, error)
+}
+
 type Handler struct {
-	store  *db.Store
+	store  DataStore
 	live   *live.Tracker
 	apiKey string
 }
 
-func NewHandler(store *db.Store, live *live.Tracker) *Handler {
+func NewHandler(store DataStore, live *live.Tracker) *Handler {
 	key := os.Getenv("ATK_API_KEY")
 	if key == "" {
 		log.Println("WARNING: ATK_API_KEY is not set; write endpoints are unprotected")
 	}
 	return &Handler{store: store, live: live, apiKey: key}
+}
+
+// NewHandlerWithKey creates a Handler with an explicit API key (useful for tests).
+func NewHandlerWithKey(store DataStore, live *live.Tracker, apiKey string) *Handler {
+	return &Handler{store: store, live: live, apiKey: apiKey}
 }
 
 // requireAPIKey is middleware that enforces API key auth on write endpoints.
