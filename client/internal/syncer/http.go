@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"atk-tracker/shared/go/atkshared"
@@ -14,12 +15,14 @@ import (
 type HTTPClient struct {
 	baseURL string
 	client  *http.Client
+	apiKey  string
 }
 
 func New(baseURL string, timeout time.Duration) *HTTPClient {
 	return &HTTPClient{
 		baseURL: baseURL,
 		client:  &http.Client{Timeout: timeout},
+		apiKey:  os.Getenv("ATK_API_KEY"),
 	}
 }
 
@@ -90,5 +93,8 @@ func (h *HTTPClient) sendJSON(ctx context.Context, method, url string, body inte
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	if h.apiKey != "" {
+		req.Header.Set("X-API-Key", h.apiKey)
+	}
 	return h.client.Do(req)
 }

@@ -1,8 +1,12 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"atk-tracker/server/internal/db"
@@ -15,30 +19,76 @@ import (
 const liveHeartbeatRecencyWindow = 5 * time.Minute
 
 type Handler struct {
-	store *db.Store
-	live  *live.Tracker
+	store  *db.Store
+	live   *live.Tracker
+	apiKey string
 }
 
 func NewHandler(store *db.Store, live *live.Tracker) *Handler {
-	return &Handler{store: store, live: live}
+	key := os.Getenv("ATK_API_KEY")
+	if key == "" {
+		log.Println("WARNING: ATK_API_KEY is not set; write endpoints are unprotected")
+	}
+	return &Handler{store: store, live: live, apiKey: key}
+}
+
+// requireAPIKey is middleware that enforces API key auth on write endpoints.
+func (h *Handler) requireAPIKey(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h.apiKey == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		token := r.Header.Get("X-API-Key")
+		if token == "" {
+			if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+				token = strings.TrimPrefix(auth, "Bearer ")
+			}
+		}
+
+		if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(h.apiKey)) != 1 {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (h *Handler) Routes() http.Handler {
 	r := chi.NewRouter()
 
-	r.Post("/sessions", h.createSession)
-	r.Put("/sessions/{id}/end", h.endSession)
-	r.Post("/heartbeats", h.createHeartbeat)
+	// Write endpoints require API key authentication.
+	r.With(h.requireAPIKey).Post("/sessions", h.createSession)
+	r.With(h.requireAPIKey).Put("/sessions/{id}/end", h.endSession)
+	r.With(h.requireAPIKey).Post("/heartbeats", h.createHeartbeat)
+
+	// Read endpoints are public.
 	r.Get("/live", h.liveView)
 	r.Get("/stats", h.statsView)
 	return r
 }
 
+const maxBodyBytes = 1 << 10 // 1 KB
+
 func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	var req atkshared.CreateSessionRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ApprenticeID == "" || req.MachineID == "" {
 		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Enforce concurrent session cap: max 2 active sessions per apprentice.
+	count, err := h.store.CountActiveSessions(r.Context(), req.ApprenticeID)
+	if err != nil {
+		http.Error(w, "failed to check sessions", http.StatusInternalServerError)
+		return
+	}
+	if count >= 2 {
+		http.Error(w, "concurrent session limit reached (max 2)", http.StatusConflict)
 		return
 	}
 
@@ -54,6 +104,7 @@ func (h *Handler) createSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
@@ -77,6 +128,7 @@ func (h *Handler) endSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) createHeartbeat(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	var hb atkshared.HeartbeatPayload
 
 	if err := json.NewDecoder(r.Body).Decode(&hb); err != nil {
